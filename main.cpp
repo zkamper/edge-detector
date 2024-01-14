@@ -1,9 +1,4 @@
-#include <SFML/Graphics.hpp>
-#include <sfeMovie/Movie.hpp>
-#include <iostream>
-#include <cstring>
-
-using namespace sf;
+#include "MyRenderer.h"
 
 int main(int argn, char **argc)
 {
@@ -24,28 +19,9 @@ int main(int argn, char **argc)
     movie.play();
     Vector2f size = movie.getSize();
     RenderWindow window(VideoMode(size.x, size.y), "Image");
-
-    // Variable declarations
-    Texture texture;
-    RenderTexture textureBuffer, textureBuffer2;
+    
+    MyRenderer renderer(size.x, size.y,&window);
     Sprite sprite;
-    Shader black_and_white,gaussian_blur,sobel;
-    
-    // Create textures with the size of the video
-    texture.create(size.x,size.y);
-    textureBuffer.create(size.x,size.y);
-    textureBuffer2.create(size.x,size.y);
-
-    // Load shaders from memory
-    black_and_white.loadFromFile("shaders/black.frag", Shader::Fragment);
-    gaussian_blur.loadFromFile("shaders/gauss.frag", Shader::Fragment);
-    sobel.loadFromFile("shaders/sobel.frag", Shader::Fragment);
-    
-    // Declare shader variables
-    black_and_white.setUniform("texture", texture);
-    gaussian_blur.setUniform("texture", textureBuffer.getTexture());
-    gaussian_blur.setUniform("screenSize", Vector2f(size.x,size.y));
-    sobel.setUniform("screenSize", Vector2f(size.x,size.y));
 
 
     while (window.isOpen())
@@ -55,27 +31,44 @@ int main(int argn, char **argc)
         {
             if (event.type == Event::Closed)
                 window.close();
+            if (event.type == Event::KeyPressed){
+                switch (event.key.code){
+                case Keyboard::Space:
+                    renderer.pause();
+                    if(renderer.getMovieState())
+                        movie.play();
+                    else
+                        movie.pause();
+                    break;
+                case Keyboard::Left:
+                    renderer.decreaseRenderPhase();
+                    break;
+                case Keyboard::Right:
+                    renderer.increaseRenderPhase();
+                    break;
+                case Keyboard::Up:
+                    if(renderer.getRenderPhase() == 4)
+                        renderer.increaseThreshold(0.01);
+                    break;
+                case Keyboard::Down:
+                    if(renderer.getRenderPhase() == 4)
+                        renderer.increaseThreshold(-0.01);
+                    break;
+                case Keyboard::R:
+                    movie.setPlayingOffset(seconds(0));
+                    printf("Restarted\n");
+                case Keyboard::Escape:
+                    window.close();
+                    break;
+                default:
+                    break;
+                }
+            }
         }
+
         window.clear();
-        
         movie.update();
-        texture = movie.getCurrentImage();
-        
-        // Apply black-and white filter
-        textureBuffer.clear();
-        textureBuffer.draw(Sprite(texture), &black_and_white);
-        textureBuffer.display();
-
-        // Apply gaussian blur filter
-        textureBuffer2.clear();
-        textureBuffer2.draw(Sprite(textureBuffer.getTexture()), &gaussian_blur);
-        textureBuffer2.display();
-
-        // Apply sobel operator
-        sobel.setUniform("texture", textureBuffer2.getTexture());
-        sprite.setTexture(textureBuffer2.getTexture());
-        window.draw(sprite, &sobel);
-
-        window.display();
+        renderer.setTexture(movie.getCurrentImage());
+        renderer.render();
     }
 }
